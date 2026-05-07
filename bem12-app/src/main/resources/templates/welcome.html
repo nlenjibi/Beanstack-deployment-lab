@@ -3,11 +3,15 @@
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="UTF-8"/>
+  <meta name="_csrf"        th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
   <title>Welcome – BEM12 App</title>
   <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body>
   <div class="card wide">
+
+    <!-- Top bar -->
     <div class="top-bar">
       <span>Logged in as <strong th:text="${email}"></strong></span>
       <form th:action="@{/logout}" method="post">
@@ -15,37 +19,83 @@
       </form>
     </div>
 
+    <!-- Profile picture -->
+    <div class="avatar-wrap">
+      <img id="profileImg"
+           th:src="${profilePicture} ?: '/css/default-avatar.svg'"
+           src="/css/default-avatar.svg"
+           alt="Profile picture"
+           class="avatar"/>
+      <label class="avatar-btn" for="profileFile">Change photo</label>
+      <input id="profileFile" type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+             onchange="previewAndUpload(this)" hidden/>
+    </div>
+    <p id="uploadMsg" class="hint"></p>
+
+    <!-- Status -->
     <div class="logo">&#9989;</div>
     <h2>Deployment successful</h2>
     <p class="subtitle">Your app is live on AWS Elastic Beanstalk</p>
 
     <button id="checkBtn" class="btn btn-primary" onclick="checkHealth()">Check Health</button>
+    <div id="healthResult" class="result-box hidden"></div>
 
-    <div id="result" class="result-box hidden"></div>
-
+    <!-- Links -->
     <div class="links">
       <a href="/api/status" target="_blank" class="btn btn-outline btn-sm">App Status</a>
-      <a href="/api/info" target="_blank" class="btn btn-outline btn-sm">App Info</a>
-      <a href="/api/data" target="_blank" class="btn btn-outline btn-sm">Visit Log</a>
+      <a href="/api/info"   target="_blank" class="btn btn-outline btn-sm">App Info</a>
+      <a href="/api/data"   target="_blank" class="btn btn-outline btn-sm">Visit Log</a>
     </div>
   </div>
 
   <script>
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+    async function previewAndUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      // Immediate local preview
+      document.getElementById('profileImg').src = URL.createObjectURL(file);
+      document.getElementById('uploadMsg').textContent = 'Uploading\u2026';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/profile/upload', {
+          method: 'POST',
+          headers: { [csrfHeader]: csrfToken },
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('profileImg').src = data.url;
+          document.getElementById('uploadMsg').textContent = data.message;
+        } else {
+          document.getElementById('uploadMsg').textContent = 'Error: ' + data.error;
+        }
+      } catch (e) {
+        document.getElementById('uploadMsg').textContent = 'Upload failed: ' + e.message;
+      }
+    }
+
     async function checkHealth() {
       const btn = document.getElementById('checkBtn');
-      const box = document.getElementById('result');
+      const box = document.getElementById('healthResult');
       btn.textContent = 'Checking\u2026';
       btn.disabled = true;
 
       try {
-        const res = await fetch('/health');
+        const res  = await fetch('/health');
         const data = await res.json();
         box.className = res.ok ? 'result-box success' : 'result-box error';
         box.innerHTML =
-          '<p><strong>Status:</strong> ' + data.status + '</p>' +
-          '<p><strong>Service:</strong> ' + data.service + '</p>' +
-          '<p><strong>Version:</strong> ' + data.version + '</p>' +
-          '<p><strong>DB Status:</strong> ' + data.db_status + '</p>';
+          '<p><strong>Status:</strong> '     + data.status    + '</p>' +
+          '<p><strong>Service:</strong> '    + data.service   + '</p>' +
+          '<p><strong>Version:</strong> '    + data.version   + '</p>' +
+          '<p><strong>DB Status:</strong> '  + data.db_status + '</p>';
       } catch (e) {
         box.className = 'result-box error';
         box.textContent = 'Health check failed: ' + e.message;

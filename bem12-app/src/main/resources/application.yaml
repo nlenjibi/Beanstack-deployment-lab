@@ -6,6 +6,16 @@ dynamodb:
   region: ${DYNAMODB_REGION:us-east-1}
   table-name: ${DYNAMODB_TABLE_NAME:bem12-visits}
 
+s3:
+  region: ${S3_REGION:us-east-1}
+  bucket-name: ${S3_PROFILE_BUCKET:bem12-profiles}
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
 management:
   endpoints:
     web:

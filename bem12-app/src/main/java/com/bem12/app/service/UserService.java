@@ -7,12 +7,14 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class UserService implements UserDetailsService {
 
     private final ConcurrentHashMap<String, UserDetails> store = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> profilePictures = new ConcurrentHashMap<>();
     private final PasswordEncoder passwordEncoder;
 
     public UserService(PasswordEncoder passwordEncoder) {
@@ -39,6 +41,14 @@ public class UserService implements UserDetailsService {
             throw new UsernameNotFoundException("User not found: " + email);
         }
         return user;
+    }
+
+    public void updateProfilePicture(String email, String url) {
+        profilePictures.put(email, url);
+    }
+
+    public Optional<String> getProfilePicture(String email) {
+        return Optional.ofNullable(profilePictures.get(email));
     }
 
     public int getUserCount() {

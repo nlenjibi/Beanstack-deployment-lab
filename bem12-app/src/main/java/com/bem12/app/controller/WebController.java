@@ -55,8 +55,10 @@ public class WebController {
     }
 
     @GetMapping("/welcome")
-    public String welcome(@AuthenticationPrincipal UserDetails user, Model model) {
-        model.addAttribute("email", user.getUsername());
+    public String welcome(@AuthenticationPrincipal UserDetails principal, Model model) {
+        model.addAttribute("email", principal.getUsername());
+        userService.getProfilePicture(principal.getUsername())
+                .ifPresent(url -> model.addAttribute("profilePicture", url));
         return "welcome";
     }
 }

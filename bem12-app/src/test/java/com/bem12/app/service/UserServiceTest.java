@@ -64,4 +64,42 @@ class UserServiceTest {
         userService.register("b@example.com", "pass");
         assertEquals(2, userService.getUserCount());
     }
+
+    // ── profile picture ───────────────────────────────────────────────────────
+
+    @Test
+    void test_getProfilePicture_withNoUpload_returnsEmpty() {
+        // Arrange
+        userService.register("alice@example.com", "pass123");
+
+        // Act + Assert
+        assertTrue(userService.getProfilePicture("alice@example.com").isEmpty());
+    }
+
+    @Test
+    void test_updateProfilePicture_withValidUrl_storesUrl() {
+        // Arrange
+        userService.register("alice@example.com", "pass123");
+        String url = "https://bucket.s3.amazonaws.com/profiles/abc.jpg";
+
+        // Act
+        userService.updateProfilePicture("alice@example.com", url);
+
+        // Assert
+        assertEquals(url, userService.getProfilePicture("alice@example.com").orElse(null));
+    }
+
+    @Test
+    void test_updateProfilePicture_calledTwice_overwritesWithLatestUrl() {
+        // Arrange
+        userService.register("alice@example.com", "pass123");
+
+        // Act
+        userService.updateProfilePicture("alice@example.com", "https://first.jpg");
+        userService.updateProfilePicture("alice@example.com", "https://second.jpg");
+
+        // Assert
+        assertEquals("https://second.jpg",
+                userService.getProfilePicture("alice@example.com").orElse(null));
+    }
 }

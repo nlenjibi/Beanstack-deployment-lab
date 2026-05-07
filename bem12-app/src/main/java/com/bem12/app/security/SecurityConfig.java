@@ -29,7 +29,7 @@ public class SecurityConfig {
                     "/", "/register", "/login",
                     "/css/**", "/js/**",
                     "/health",
-                    "/api/**"
+                    "/api/status", "/api/info", "/api/data"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

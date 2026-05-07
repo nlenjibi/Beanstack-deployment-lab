@@ -101,6 +101,30 @@ h2 { font-size: 1.5rem; font-weight: 600; color: #fff; margin-bottom: 1.25rem; }
 }
 .back-link:hover { color: #e94560; }
 
+/* Avatar / profile picture */
+.avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: #1e2a3a;
+}
+.avatar-btn {
+  font-size: 0.78rem;
+  color: #e94560;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.avatar-btn:hover { opacity: 0.8; }
+
 /* Welcome page */
 .top-bar {
   display: flex;
