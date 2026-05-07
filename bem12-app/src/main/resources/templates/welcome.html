@@ -40,11 +40,15 @@
     <button id="checkBtn" class="btn btn-primary" onclick="checkHealth()">Check Health</button>
     <div id="healthResult" class="result-box hidden"></div>
 
+    <button id="metricsBtn" class="btn btn-primary" onclick="checkMetrics()">JVM Metrics</button>
+    <div id="metricsResult" class="result-box hidden"></div>
+
     <!-- Links -->
     <div class="links">
-      <a href="/api/status" target="_blank" class="btn btn-outline btn-sm">App Status</a>
-      <a href="/api/info"   target="_blank" class="btn btn-outline btn-sm">App Info</a>
-      <a href="/api/data"   target="_blank" class="btn btn-outline btn-sm">Visit Log</a>
+      <a href="/api/status"  target="_blank" class="btn btn-outline btn-sm">App Status</a>
+      <a href="/api/info"    target="_blank" class="btn btn-outline btn-sm">App Info</a>
+      <a href="/api/data"    target="_blank" class="btn btn-outline btn-sm">Visit Log</a>
+      <a href="/api/metrics" target="_blank" class="btn btn-outline btn-sm">Metrics</a>
     </div>
   </div>
 
@@ -101,7 +105,35 @@
         box.textContent = 'Health check failed: ' + e.message;
       }
 
+      box.classList.remove('hidden');
       btn.textContent = 'Check Health';
+      btn.disabled = false;
+    }
+
+    async function checkMetrics() {
+      const btn = document.getElementById('metricsBtn');
+      const box = document.getElementById('metricsResult');
+      btn.textContent = 'Loading\u2026';
+      btn.disabled = true;
+
+      try {
+        const res  = await fetch('/api/metrics');
+        const data = await res.json();
+        const mem  = data.jvm_memory;
+        box.className = 'result-box success';
+        box.innerHTML =
+          '<p><strong>Heap Used:</strong> '   + mem.heap_used_mb  + ' MB</p>' +
+          '<p><strong>Heap Max:</strong> '    + mem.heap_max_mb   + ' MB</p>' +
+          '<p><strong>Heap Usage:</strong> '  + mem.heap_used_pct + '</p>'    +
+          '<p><strong>Uptime:</strong> '      + data.uptime_seconds + 's</p>' +
+          '<p><strong>DB Status:</strong> '   + data.db_status    + '</p>';
+      } catch (e) {
+        box.className = 'result-box error';
+        box.textContent = 'Metrics fetch failed: ' + e.message;
+      }
+
+      box.classList.remove('hidden');
+      btn.textContent = 'JVM Metrics';
       btn.disabled = false;
     }
   </script>
