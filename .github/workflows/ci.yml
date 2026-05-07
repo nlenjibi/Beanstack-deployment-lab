@@ -131,7 +131,14 @@ jobs:
 
       - name: OWASP Dependency Check
         working-directory: bem12-app
-        run: mvn org.owasp:dependency-check-maven:check -B -DfailBuildOnCVSS=10 || true
+        timeout-minutes: 20
+        run: |
+          NVD_KEY="${{ secrets.NVD_API_KEY }}"
+          if [ -n "$NVD_KEY" ]; then
+            mvn org.owasp:dependency-check-maven:check -B -DfailBuildOnCVSS=10 "-DnvdApiKey=$NVD_KEY" || true
+          else
+            mvn org.owasp:dependency-check-maven:check -B -DfailBuildOnCVSS=10 || true
+          fi
         continue-on-error: true
 
       - name: Upload OWASP report
