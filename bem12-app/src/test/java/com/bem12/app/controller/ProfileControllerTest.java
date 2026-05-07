@@ -2,6 +2,7 @@ package com.bem12.app.controller;
 
 import com.bem12.app.dto.ProfileUploadResponse;
 import com.bem12.app.exception.InvalidFileException;
+import com.bem12.app.config.PasswordEncoderConfig;
 import com.bem12.app.security.SecurityConfig;
 import com.bem12.app.service.ProfileStorageService;
 import com.bem12.app.service.UserService;
@@ -22,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProfileController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, PasswordEncoderConfig.class})
 class ProfileControllerTest {
 
     @Autowired

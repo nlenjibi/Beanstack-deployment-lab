@@ -1,5 +1,6 @@
 package com.bem12.app.controller;
 
+import com.bem12.app.config.PasswordEncoderConfig;
 import com.bem12.app.security.SecurityConfig;
 import com.bem12.app.service.DynamoDBService;
 import com.bem12.app.service.UserService;
@@ -20,7 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(BEM12Controller.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, PasswordEncoderConfig.class})
 class BEM12ControllerTest {
 
     @Autowired
