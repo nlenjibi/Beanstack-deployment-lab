@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Welcome – BEM12 App</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+  <div class="card wide">
+    <div class="top-bar">
+      <span>Logged in as <strong th:text="${email}"></strong></span>
+      <form th:action="@{/logout}" method="post">
+        <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+      </form>
+    </div>
+
+    <div class="logo">&#9989;</div>
+    <h2>Deployment successful</h2>
+    <p class="subtitle">Your app is live on AWS Elastic Beanstalk</p>
+
+    <button id="checkBtn" class="btn btn-primary" onclick="checkHealth()">Check Health</button>
+
+    <div id="result" class="result-box hidden"></div>
+
+    <div class="links">
+      <a href="/api/status" target="_blank" class="btn btn-outline btn-sm">App Status</a>
+      <a href="/api/info" target="_blank" class="btn btn-outline btn-sm">App Info</a>
+      <a href="/api/data" target="_blank" class="btn btn-outline btn-sm">Visit Log</a>
+    </div>
+  </div>
+
+  <script>
+    async function checkHealth() {
+      const btn = document.getElementById('checkBtn');
+      const box = document.getElementById('result');
+      btn.textContent = 'Checking\u2026';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        box.className = res.ok ? 'result-box success' : 'result-box error';
+        box.innerHTML =
+          '<p><strong>Status:</strong> ' + data.status + '</p>' +
+          '<p><strong>Service:</strong> ' + data.service + '</p>' +
+          '<p><strong>Version:</strong> ' + data.version + '</p>' +
+          '<p><strong>DB Status:</strong> ' + data.db_status + '</p>';
+      } catch (e) {
+        box.className = 'result-box error';
+        box.textContent = 'Health check failed: ' + e.message;
+      }
+
+      btn.textContent = 'Check Health';
+      btn.disabled = false;
+    }
+  </script>
+</body>
+</html>

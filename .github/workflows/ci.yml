@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════
+  # Stage 1: Build & Unit Tests
+  # ═══════════════════════════════════════════════════════════════
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Compile with Maven
+        working-directory: bem12-app
+        run: mvn clean package -DskipTests -B
+
+      - name: Run unit tests
+        working-directory: bem12-app
+        run: mvn test -B
+        env:
+          DYNAMODB_REGION: us-east-1
+          DYNAMODB_TABLE_NAME: test-visits
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: bem12-app/target/surefire-reports/
+          retention-days: 7
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: bem12-app/target/site/jacoco/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # Stage 2: Code Quality (Checkstyle)
+  # ═══════════════════════════════════════════════════════════════
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run Checkstyle
+        working-directory: bem12-app
+        run: mvn checkstyle:check -B
+        continue-on-error: true
+
+      - name: Upload Checkstyle report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: bem12-app/target/checkstyle-result.xml
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # Stage 3: Security Scanning
+  # ═══════════════════════════════════════════════════════════════
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-and-test
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: OWASP Dependency Check
+        working-directory: bem12-app
+        run: mvn org.owasp:dependency-check-maven:check -B -DfailBuildOnCVSS=10 || true
+        continue-on-error: true
+
+      - name: Upload OWASP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-report
+          path: bem12-app/target/dependency-check-report.html
+          retention-days: 7

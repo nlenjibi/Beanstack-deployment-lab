@@ -1,0 +1,16 @@
+# Exclude everything from the EB source bundle by default,
+# then allow only what the Corretto platform needs.
+# Note: this file is only used when deploying manually via the EB CLI.
+# The GitHub Actions workflow builds its own clean bundle (application.jar + Procfile + .ebextensions).
+
+bem12-app/src/
+bem12-app/target/
+*.md
+*.sh
+*.bat
+.env
+.git/
+.gitignore
+.idea/
+deploy.zip
+bundle/

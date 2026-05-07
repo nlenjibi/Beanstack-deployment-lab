@@ -1,0 +1,22 @@
+app:
+  version: ${APP_VERSION:1.0.0}
+  name: BEM12 Application
+
+dynamodb:
+  region: ${DYNAMODB_REGION:us-east-1}
+  table-name: ${DYNAMODB_TABLE_NAME:bem12-visits}
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.bem12.app: INFO
+
+server:
+  port: ${PORT:5000}
