@@ -1,6 +1,7 @@
 package com.bem12.app.controller;
 
 import com.bem12.app.service.DynamoDBService;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,9 +21,11 @@ public class BEM12Controller {
     private String appVersion;
 
     private final DynamoDBService dynamoDBService;
+    private final MeterRegistry meterRegistry;
 
-    public BEM12Controller(DynamoDBService dynamoDBService) {
+    public BEM12Controller(DynamoDBService dynamoDBService, MeterRegistry meterRegistry) {
         this.dynamoDBService = dynamoDBService;
+        this.meterRegistry = meterRegistry;
     }
 
     @GetMapping("/status")
@@ -59,6 +62,31 @@ public class BEM12Controller {
         body.put("table_status", dynamoDBService.getConnectionStatus());
         body.put("count", visits.size());
         body.put("recent_visits", visits);
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/metrics")
+    public ResponseEntity<Map<String, Object>> metrics() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", Instant.now().toString());
+
+        double heapUsed = meterRegistry.get("jvm.memory.used")
+                .tag("area", "heap").gauge().value();
+        double heapMax = meterRegistry.get("jvm.memory.max")
+                .tag("area", "heap").gauge().value();
+
+        Map<String, Object> memory = new LinkedHashMap<>();
+        memory.put("heap_used_mb",  Math.round(heapUsed  / 1024 / 1024));
+        memory.put("heap_max_mb",   Math.round(heapMax   / 1024 / 1024));
+        memory.put("heap_used_pct", heapMax > 0
+                ? Math.round(heapUsed / heapMax * 100) + "%" : "n/a");
+        body.put("jvm_memory", memory);
+
+        double uptimeMs = meterRegistry.get("process.uptime").timeGauge().value(
+                java.util.concurrent.TimeUnit.MILLISECONDS);
+        body.put("uptime_seconds", Math.round(uptimeMs / 1000));
+
+        body.put("db_status", dynamoDBService.getConnectionStatus());
         return ResponseEntity.ok(body);
     }
 }
