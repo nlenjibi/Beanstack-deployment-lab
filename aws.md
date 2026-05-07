@@ -209,9 +209,54 @@ application does not do (uploads go through the Spring Boot backend).
 
 ---
 
-## DynamoDB Table — `bem12-visits`
+## DynamoDB Tables
 
-### Create the table
+The project uses **two DynamoDB tables**.
+
+| Table | Partition key | Purpose |
+|-------|--------------|---------|
+| `bem12-users` | `email` (String) | User accounts and profile picture URLs |
+| `bem12-visits` | `visitId` (String) | Page visit tracking |
+
+---
+
+### Table 1 — `bem12-users`
+
+**Purpose:** Stores registered users (`email`, `passwordHash`, `profilePictureUrl`).
+This is the authoritative user store — the application reads and writes here on every login and registration.
+
+#### Create the table
+
+1. Open **DynamoDB → Create table**
+2. **Table name:** `bem12-users`
+3. **Partition key:** `email` — type **String**
+4. **Table settings:** Default settings (On-demand billing mode)
+5. Click **Create table**
+
+#### IAM permissions (EC2 instance role)
+
+```json
+{
+  "Sid": "AllowUsersTableAccess",
+  "Effect": "Allow",
+  "Action": [
+    "dynamodb:PutItem",
+    "dynamodb:GetItem",
+    "dynamodb:UpdateItem",
+    "dynamodb:Scan",
+    "dynamodb:DescribeTable"
+  ],
+  "Resource": "arn:aws:dynamodb:us-east-1:*:table/bem12-users"
+}
+```
+
+---
+
+### Table 2 — `bem12-visits`
+
+**Purpose:** Records every page visit (path + timestamp) for analytics.
+
+#### Create the table
 
 1. Open **DynamoDB → Create table**
 2. **Table name:** `bem12-visits`
@@ -219,9 +264,9 @@ application does not do (uploads go through the Spring Boot backend).
 4. **Table settings:** Default settings (On-demand billing mode)
 5. Click **Create table**
 
-### IAM permissions (EC2 instance role)
+#### IAM permissions (EC2 instance role)
 
-Add the following to the same EB EC2 instance role used above:
+Add the following to the same EB EC2 instance role:
 
 ```json
 {
@@ -260,6 +305,7 @@ Add the following to the same EB EC2 instance role used above:
    | `APP_VERSION` | `1.0.0` |
    | `DYNAMODB_REGION` | `us-east-1` |
    | `DYNAMODB_TABLE_NAME` | `bem12-visits` |
+   | `DYNAMODB_USERS_TABLE_NAME` | `bem12-users` |
    | `S3_PROFILE_BUCKET` | `bem12-profiles` |
    | `S3_REGION` | `us-east-1` |
    | `JAVA_OPTS` | `-Xmx256m -Xms128m` |
@@ -345,7 +391,10 @@ IAM
       ☐ DynamoDB table policy (PutItem/Scan/etc on bem12-visits)
 
 DynamoDB
+  ☐ bem12-users table created (partition key: email, on-demand)
+      ☐ EC2 role policy: PutItem/GetItem/UpdateItem/Scan/DescribeTable on bem12-users
   ☐ bem12-visits table created (partition key: visitId, on-demand)
+      ☐ EC2 role policy: PutItem/GetItem/Scan/DescribeTable on bem12-visits
 
 Elastic Beanstalk
   ☐ Application bem12-app created
@@ -361,3 +410,4 @@ GitHub
   ☐ S3_BUCKET_NAME = bem12-eb-deployments secret added
   ☐ Branch protection on main: require CI status checks before merge
 ```
+aws.md — added bem12-users table creation steps, its IAM policy (PutItem, GetItem, UpdateItem, Scan, DescribeTable), and the new EB env var to the checklist.

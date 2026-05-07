@@ -2,19 +2,84 @@ package com.bem12.app.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 
+@ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
+    @Mock
+    private DynamoDbClient dynamoDbClient;
+
     private UserService userService;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final Map<String, Map<String, AttributeValue>> fakeTable = new HashMap<>();
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(new BCryptPasswordEncoder());
+        fakeTable.clear();
+        userService = new UserService(dynamoDbClient, "bem12-users", passwordEncoder);
+        stubDynamoDb();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void stubDynamoDb() {
+        lenient().when(dynamoDbClient.getItem(any(Consumer.class))).thenAnswer(inv -> {
+            Consumer<GetItemRequest.Builder> consumer = inv.getArgument(0);
+            GetItemRequest.Builder b = GetItemRequest.builder();
+            consumer.accept(b);
+            GetItemRequest req = b.build();
+            Map<String, AttributeValue> item = fakeTable.getOrDefault(
+                    req.key().get("email").s(), Collections.emptyMap());
+            return GetItemResponse.builder().item(item).build();
+        });
+
+        lenient().when(dynamoDbClient.putItem(any(Consumer.class))).thenAnswer(inv -> {
+            Consumer<PutItemRequest.Builder> consumer = inv.getArgument(0);
+            PutItemRequest.Builder b = PutItemRequest.builder();
+            consumer.accept(b);
+            PutItemRequest req = b.build();
+            fakeTable.put(req.item().get("email").s(), new HashMap<>(req.item()));
+            return PutItemResponse.builder().build();
+        });
+
+        lenient().when(dynamoDbClient.updateItem(any(Consumer.class))).thenAnswer(inv -> {
+            Consumer<UpdateItemRequest.Builder> consumer = inv.getArgument(0);
+            UpdateItemRequest.Builder b = UpdateItemRequest.builder();
+            consumer.accept(b);
+            UpdateItemRequest req = b.build();
+            String email = req.key().get("email").s();
+            String url = req.expressionAttributeValues().get(":url").s();
+            fakeTable.computeIfAbsent(email, k -> new HashMap<>())
+                     .put("profilePictureUrl", AttributeValue.fromS(url));
+            return UpdateItemResponse.builder().build();
+        });
+
+        lenient().when(dynamoDbClient.scan(any(Consumer.class))).thenAnswer(inv ->
+                ScanResponse.builder().count(fakeTable.size()).build()
+        );
     }
 
     @Test
@@ -69,36 +134,23 @@ class UserServiceTest {
 
     @Test
     void test_getProfilePicture_withNoUpload_returnsEmpty() {
-        // Arrange
         userService.register("alice@example.com", "pass123");
-
-        // Act + Assert
         assertTrue(userService.getProfilePicture("alice@example.com").isEmpty());
     }
 
     @Test
     void test_updateProfilePicture_withValidUrl_storesUrl() {
-        // Arrange
         userService.register("alice@example.com", "pass123");
         String url = "https://bucket.s3.amazonaws.com/profiles/abc.jpg";
-
-        // Act
         userService.updateProfilePicture("alice@example.com", url);
-
-        // Assert
         assertEquals(url, userService.getProfilePicture("alice@example.com").orElse(null));
     }
 
     @Test
     void test_updateProfilePicture_calledTwice_overwritesWithLatestUrl() {
-        // Arrange
         userService.register("alice@example.com", "pass123");
-
-        // Act
         userService.updateProfilePicture("alice@example.com", "https://first.jpg");
         userService.updateProfilePicture("alice@example.com", "https://second.jpg");
-
-        // Assert
         assertEquals("https://second.jpg",
                 userService.getProfilePicture("alice@example.com").orElse(null));
     }

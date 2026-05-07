@@ -5,6 +5,7 @@ app:
 dynamodb:
   region: ${DYNAMODB_REGION:us-east-1}
   table-name: ${DYNAMODB_TABLE_NAME:bem12-visits}
+  users-table-name: ${DYNAMODB_USERS_TABLE_NAME:bem12-users}
 
 s3:
   region: ${S3_REGION:us-east-1}
@@ -20,9 +21,19 @@ management:
   endpoints:
     web:
       base-path: /actuator
+      exposure:
+        include: health,info,metrics
   endpoint:
     health:
       show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: BEM12 Application
+    version: ${APP_VERSION:1.0.0}
 
 logging:
   level:
