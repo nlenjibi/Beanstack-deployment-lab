@@ -16,7 +16,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.0</version>
+        <version>3.4.5</version>
     </parent>
 
     <properties>
@@ -24,8 +24,16 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <aws.sdk.version>2.21.42</aws.sdk.version>
-        <jacoco.version>0.8.11</jacoco.version>
+        <aws.sdk.version>2.28.0</aws.sdk.version>
+        <jacoco.version>0.8.12</jacoco.version>
+
+        <!-- ── Security patch overrides ────────────────────────────────────
+             Spring Boot 3.4.5 BOM still ships older transitive versions for
+             some of these packages.  Pin each to the minimum fixed release. -->
+        <tomcat.version>10.1.54</tomcat.version>
+        <spring-framework.version>6.2.11</spring-framework.version>
+        <spring-security.version>6.5.9</spring-security.version>
+        <thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
     </properties>
 
     <dependencyManagement>
