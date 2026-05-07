@@ -1,0 +1,120 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  APPLICATION_NAME: bem12-app
+  ENVIRONMENT_NAME: bem12-env
+  JAVA_VERSION: '17'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════
+  # Stage 1: Build & Test (gate before deploying)
+  # ═══════════════════════════════════════════════════════════════
+  build:
+    name: Build & Upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version-label: ${{ steps.version.outputs.label }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate version label
+        id: version
+        run: echo "label=v${{ github.run_number }}-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Compile and test
+        working-directory: bem12-app
+        run: mvn clean verify -B
+        env:
+          DYNAMODB_REGION: us-east-1
+          DYNAMODB_TABLE_NAME: test-visits
+
+      - name: Create deployment bundle
+        run: |
+          mkdir -p bundle
+          cp bem12-app/target/bem12-app-*.jar bundle/application.jar
+          cp Procfile bundle/
+          cp -r .ebextensions bundle/
+          cd bundle && zip -r ../deploy.zip .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp deploy.zip \
+            "s3://${{ secrets.S3_BUCKET_NAME }}/${{ steps.version.outputs.label }}.zip"
+
+  # ═══════════════════════════════════════════════════════════════
+  # Stage 2: Deploy to Elastic Beanstalk
+  # ═══════════════════════════════════════════════════════════════
+  deploy:
+    name: Deploy to Elastic Beanstalk
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    environment: production
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "${{ env.APPLICATION_NAME }}" \
+            --version-label "${{ needs.build.outputs.version-label }}" \
+            --description "Build #${{ github.run_number }} by ${{ github.actor }}" \
+            --source-bundle \
+              "S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=${{ needs.build.outputs.version-label }}.zip"
+
+      - name: Deploy to environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "${{ env.ENVIRONMENT_NAME }}" \
+            --version-label "${{ needs.build.outputs.version-label }}"
+
+      - name: Wait for environment to become ready
+        run: |
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names "${{ env.ENVIRONMENT_NAME }}"
+
+      - name: Verify deployment
+        run: |
+          CNAME=$(aws elasticbeanstalk describe-environments \
+            --environment-names "${{ env.ENVIRONMENT_NAME }}" \
+            --query 'Environments[0].CNAME' \
+            --output text)
+          echo "::notice title=Deployment URL::http://$CNAME"
+          curl --fail --silent --retry 3 --retry-delay 5 "http://$CNAME/health"
+          echo ""
+          echo "Version ${{ needs.build.outputs.version-label }} deployed and verified"
