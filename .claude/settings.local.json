@@ -6,7 +6,8 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(gh pr create --title 'feat: DynamoDB user persistence, S3 profile upload, Actuator health' --body ' *)"
+      "Bash(gh pr create --title 'feat: DynamoDB user persistence, S3 profile upload, Actuator health' --body ' *)",
+      "Bash(mvn test *)"
     ]
   }
 }
