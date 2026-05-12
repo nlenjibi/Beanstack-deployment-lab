@@ -16,7 +16,7 @@ env:
   AWS_REGION: us-east-1
   APPLICATION_NAME: bem12-app
   ENVIRONMENT_NAME: bem12-env
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '21'
 
 jobs:
   # ═══════════════════════════════════════════════════════════════
