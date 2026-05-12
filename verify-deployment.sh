@@ -5,7 +5,7 @@ set -e
 
 # Configuration
 APPLICATION_NAME="bem12-app"
-ENVIRONMENT_NAME="bem12-env"
+ENVIRONMENT_NAME="Bem12-app-env"
 REGION="us-east-1"
 
 echo "======================================"
