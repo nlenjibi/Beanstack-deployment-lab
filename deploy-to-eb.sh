@@ -5,8 +5,8 @@ set -e
 
 # Configuration
 APPLICATION_NAME="bem12-app"
-ENVIRONMENT_NAME="bem12-env"
-S3_BUCKET="bem12-app-deployment-bucket"
+ENVIRONMENT_NAME="bem12-app-env"
+S3_BUCKET="bem12-eb-deployments"
 VERSION_LABEL="v$(date +%Y%m%d-%H%M%S)"
 REGION="us-east-1"
 
@@ -35,9 +35,9 @@ print_error() {
 
 # Step 1: Build application
 print_info "Step 1: Building application..."
-if [ -f "pom.xml" ]; then
-    mvn clean package -DskipTests
-    ARTIFACT="target/*.jar"
+if [ -f "bem12-app/pom.xml" ]; then
+    mvn -f bem12-app/pom.xml clean package -DskipTests
+    ARTIFACT="bem12-app/target/*.jar"
     APP_TYPE="Java"
 elif [ -f "package.json" ]; then
     npm ci
