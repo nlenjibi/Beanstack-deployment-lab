@@ -116,14 +116,22 @@ jobs:
         run: |
           aws elasticbeanstalk wait environment-updated \
             --environment-names "${{ env.ENVIRONMENT_NAME }}"
-          HEALTH=$(aws elasticbeanstalk describe-environments \
-            --environment-names "${{ env.ENVIRONMENT_NAME }}" \
-            --query 'Environments[0].Health' --output text)
-          echo "Environment health: $HEALTH"
-          if [ "$HEALTH" = "Red" ]; then
-            echo "::error::Environment health is Red after deployment"
-            exit 1
-          fi
+
+          echo "Waiting for environment health to stabilise..."
+          for i in $(seq 1 12); do
+            HEALTH=$(aws elasticbeanstalk describe-environments \
+              --environment-names "${{ env.ENVIRONMENT_NAME }}" \
+              --query 'Environments[0].Health' --output text)
+            echo "Attempt $i/12: health=$HEALTH"
+            if [ "$HEALTH" = "Green" ] || [ "$HEALTH" = "Ok" ]; then
+              echo "Environment is healthy"
+              exit 0
+            fi
+            [ $i -lt 12 ] && sleep 15
+          done
+
+          echo "::error::Environment health did not recover after 3 minutes (final: $HEALTH)"
+          exit 1
 
       - name: Verify deployment
         run: |
