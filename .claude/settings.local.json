@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --title 'feat: DynamoDB user persistence, S3 profile upload, Actuator health' --body ' *)",
+      "Bash(mvn test *)",
+      "Bash(mvn dependency:resolve -q)",
+      "Read(//c/Users/TimothyNlenjibi/.m2/**)",
+      "Bash(jar tf *)",
+      "Bash(powershell.exe -Command ' *)"
+    ]
+  }
+}
