@@ -91,23 +91,39 @@ jobs:
 
       - name: Create application version
         run: |
+          VERSION="${{ needs.build.outputs.version-label }}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::version-label output is empty — aborting"
+            exit 1
+          fi
+          echo "Deploying version: $VERSION"
           aws elasticbeanstalk create-application-version \
             --application-name "${{ env.APPLICATION_NAME }}" \
-            --version-label "${{ needs.build.outputs.version-label }}" \
+            --version-label "$VERSION" \
             --description "Build #${{ github.run_number }} by ${{ github.actor }}" \
             --source-bundle \
-              "S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=${{ needs.build.outputs.version-label }}.zip"
+              "S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=${VERSION}.zip"
 
       - name: Deploy to environment
         run: |
+          VERSION="${{ needs.build.outputs.version-label }}"
           aws elasticbeanstalk update-environment \
             --environment-name "${{ env.ENVIRONMENT_NAME }}" \
-            --version-label "${{ needs.build.outputs.version-label }}"
+            --version-label "$VERSION"
 
       - name: Wait for environment to become ready
+        timeout-minutes: 10
         run: |
           aws elasticbeanstalk wait environment-updated \
             --environment-names "${{ env.ENVIRONMENT_NAME }}"
+          HEALTH=$(aws elasticbeanstalk describe-environments \
+            --environment-names "${{ env.ENVIRONMENT_NAME }}" \
+            --query 'Environments[0].Health' --output text)
+          echo "Environment health: $HEALTH"
+          if [ "$HEALTH" = "Red" ]; then
+            echo "::error::Environment health is Red after deployment"
+            exit 1
+          fi
 
       - name: Verify deployment
         run: |
@@ -116,6 +132,21 @@ jobs:
             --query 'Environments[0].CNAME' \
             --output text)
           echo "::notice title=Deployment URL::http://$CNAME"
-          curl --fail --silent --retry 3 --retry-delay 5 "http://$CNAME/health"
-          echo ""
-          echo "Version ${{ needs.build.outputs.version-label }} deployed and verified"
+
+          echo "Waiting for application to warm up..."
+          sleep 15
+
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              --max-time 10 "http://$CNAME/health" || echo "000")
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed"
+              echo "Version ${{ needs.build.outputs.version-label }} deployed and verified"
+              exit 0
+            fi
+            [ $i -lt 5 ] && sleep 15
+          done
+
+          echo "::error::Health check failed after 5 attempts"
+          exit 1
