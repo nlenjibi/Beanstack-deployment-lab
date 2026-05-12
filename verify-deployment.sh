@@ -5,7 +5,7 @@ set -e
 
 # Configuration
 APPLICATION_NAME="bem12-app"
-ENVIRONMENT_NAME="Bem12-app-env"
+ENVIRONMENT_NAME="bem12-app-env"
 REGION="us-east-1"
 
 echo "======================================"
@@ -89,4 +89,3 @@ echo "URL: http://$URL"
 echo "Status: $STATUS"
 echo "Version: $VERSION"
 echo ""
-/users/
